@@ -2,7 +2,7 @@
 RAG Evaluation Script
 Measures 5 metrics for each test question:
   1. Context Relevance  - how well retrieved chunks match the query (cosine similarity)
-  2. Hit Rate           - did any chunk contain the expected answer keywords
+  2. Precision@K        - fraction of top-K chunks that contain at least one expected keyword
   3. Answer Relevance   - how well the generated answer addresses the question (cosine similarity)
   4. Faithfulness       - how grounded the answer is in the retrieved context (cosine similarity)
   5. LLM Judge Score    - Gemini scores the answer on correctness, completeness, groundedness
@@ -42,11 +42,20 @@ def context_relevance(query_embedding, chunk_texts, embed_model):
     return round(float(np.mean(scores)), 4)
 
 
-def hit_rate(chunk_texts, expected_keywords):
-    """1.0 if retrieved chunks collectively contain all expected keywords."""
-    joined = " ".join(chunk_texts).lower()
-    hit = all(kw.lower() in joined for kw in expected_keywords)
-    return 1.0 if hit else 0.0
+def precision_at_k(chunk_texts, expected_keywords, k=None):
+    """
+    Fraction of top-K retrieved chunks that contain at least one expected keyword.
+    Unlike binary hit rate, this measures how many of the K chunks are actually relevant.
+    E.g. 4 out of 5 chunks contain keywords -> Precision@5 = 0.80
+    """
+    if k is None:
+        k = len(chunk_texts)
+    chunks_to_check = chunk_texts[:k]
+    relevant = sum(
+        1 for chunk in chunks_to_check
+        if any(kw.lower() in chunk.lower() for kw in expected_keywords)
+    )
+    return round(relevant / k, 4)
 
 
 def answer_relevance(question_embedding, answer_embedding):
@@ -156,14 +165,14 @@ def main():
 
     results = []
     totals = {
-        "context_relevance": 0, "hit_rate": 0,
+        "context_relevance": 0, "precision_at_k": 0,
         "answer_relevance": 0, "faithfulness": 0,
         "llm_judge": 0,
     }
 
     print(f"\nRunning evaluation on {len(test_cases)} questions...\n")
-    print(f"{'#':<4} {'Question':<50} {'CtxRel':>7} {'Hit':>5} {'AnsRel':>7} {'Faith':>7} {'Judge':>7}")
-    print("-" * 97)
+    print(f"{'#':<4} {'Question':<50} {'CtxRel':>7} {'P@5':>6} {'AnsRel':>7} {'Faith':>7} {'Judge':>7}")
+    print("-" * 98)
 
     for i, tc in enumerate(test_cases):
         question = tc["question"]
@@ -183,7 +192,7 @@ def main():
 
         # Compute cosine-based metrics
         m_context_relevance = context_relevance(q_embedding, chunk_texts, embed_model)
-        m_hit_rate = hit_rate(chunk_texts, expected_keywords)
+        m_precision = precision_at_k(chunk_texts, expected_keywords, k=TOP_K)
         m_answer_relevance = answer_relevance(q_embedding, answer_embedding)
         m_faithfulness = faithfulness(answer_embedding, chunk_texts, embed_model)
 
@@ -197,7 +206,7 @@ def main():
             "answer": answer,
             "metrics": {
                 "context_relevance": m_context_relevance,
-                "hit_rate": m_hit_rate,
+                "precision_at_k": m_precision,
                 "answer_relevance": m_answer_relevance,
                 "faithfulness": m_faithfulness,
                 "llm_judge": m_judge,
@@ -210,13 +219,13 @@ def main():
             totals[k] += result["metrics"][k]
 
         short_q = question[:48] + ".." if len(question) > 48 else question
-        print(f"{i+1:<4} {short_q:<50} {m_context_relevance:>7.3f} {int(m_hit_rate):>5} {m_answer_relevance:>7.3f} {m_faithfulness:>7.3f} {m_judge:>7.3f}")
+        print(f"{i+1:<4} {short_q:<50} {m_context_relevance:>7.3f} {m_precision:>6.2f} {m_answer_relevance:>7.3f} {m_faithfulness:>7.3f} {m_judge:>7.3f}")
 
     n = len(test_cases)
     averages = {k: round(v / n, 4) for k, v in totals.items()}
 
-    print("-" * 97)
-    print(f"{'AVERAGE':<54} {averages['context_relevance']:>7.3f} {averages['hit_rate']:>5.2f} {averages['answer_relevance']:>7.3f} {averages['faithfulness']:>7.3f} {averages['llm_judge']:>7.3f}")
+    print("-" * 98)
+    print(f"{'AVERAGE':<54} {averages['context_relevance']:>7.3f} {averages['precision_at_k']:>6.2f} {averages['answer_relevance']:>7.3f} {averages['faithfulness']:>7.3f} {averages['llm_judge']:>7.3f}")
 
     output = {
         "retrieval": "hybrid (vector + BM25 + RRF)",
@@ -233,7 +242,7 @@ def main():
     print(f"\nResults saved to: {RESULTS_PATH}")
     print("\nSummary:")
     print(f"  Context Relevance : {averages['context_relevance']:.3f}  (are retrieved chunks related to the question?)")
-    print(f"  Hit Rate          : {averages['hit_rate']:.2f}   (did we find chunks with the right answer?)")
+    print(f"  Precision@{TOP_K}       : {averages['precision_at_k']:.2f}   (fraction of top-{TOP_K} chunks that contain expected keywords)")
     print(f"  Answer Relevance  : {averages['answer_relevance']:.3f}  (does the answer address the question?)")
     print(f"  Faithfulness      : {averages['faithfulness']:.3f}  (is the answer grounded in retrieved context?)")
     print(f"  LLM Judge Score   : {averages['llm_judge']:.3f}  (Gemini rates correctness + completeness + groundedness)")
