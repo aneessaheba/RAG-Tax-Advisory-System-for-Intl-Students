@@ -492,19 +492,23 @@ Evaluated on 10 international student tax questions across 5 metrics (0.0–1.0,
 
 **LLM Judge findings:** 7 of 10 answers scored 1.0, identifying two weak answers — Q6 (India treaty answer too vague to be actionable) and Q8 (OPT answer referenced tax software instead of explaining the tax obligation directly). Cosine similarity alone would not have caught these gaps.
 
-### v1 → v2 → v3 Comparison
+### v1 → v2 → v3 → v4 Comparison
 
-| Metric | v1 (vector) | v2 (hybrid) | v3 (+ LLM Judge) | Change v1→v3 |
-|--------|------------|-------------|-----------------|-------------|
-| Context Relevance | 0.584 | 0.549 | 0.549 | -0.035 |
-| **Hit Rate** | **0.70** | **1.00** | **1.00** | **+0.30 ✅** |
-| **Answer Relevance** | **0.693** | **0.740** | **0.729** | **+0.036 ✅** |
-| Faithfulness | 0.738 | 0.699 | 0.684 | -0.054 |
-| **LLM Judge** | — | — | **0.770** | **new ✅** |
+| Metric | v1 (vector) | v2 (hybrid) | v3 (+ LLM Judge) | v4 (+ Precision@K) | Change v1→v4 |
+|--------|------------|-------------|-----------------|-------------------|-------------|
+| Context Relevance | 0.584 | 0.549 | 0.549 | 0.549 | -0.035 |
+| **Hit Rate / P@5** | **0.70** | **1.00** | **1.00** | **0.82** | **+0.12 ✅** |
+| **Answer Relevance** | **0.693** | **0.740** | **0.729** | **0.729** | **+0.036 ✅** |
+| Faithfulness | 0.738 | 0.699 | 0.684 | 0.684 | -0.054 |
+| **LLM Judge** | — | — | **0.770** | **0.770** | **new ✅** |
+
+> v4 note: Precision@5 (0.82) replaces binary Hit Rate. It measures the fraction of the top-5 retrieved chunks that actually contain expected keywords — a stricter, more informative metric. 0.82 means on average 4.1 of 5 retrieved chunks are relevant.
 
 **Key improvement (v1→v2):** Hit rate jumped from 70% → **100%** — BM25 catches exact form names and tax terms (like "8843", "FICA", "OPT") that vector search can miss.
 
-**Key improvement (v2→v3):** LLM-as-a-Judge adds a human-like quality signal. It identified two answers that cosine metrics rated as acceptable but were actually weak or off-topic — a gap that embedding similarity can't detect.
+**Key improvement (v2→v3):** LLM-as-a-Judge adds a human-like quality signal — identified two answers that cosine metrics rated acceptable but were actually weak.
+
+**Key improvement (v3→v4):** Binary Hit Rate replaced with Precision@K — measures how many of the 5 retrieved chunks are relevant, not just whether any one of them is.
 
 ### Metric Definitions
 
