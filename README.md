@@ -136,6 +136,9 @@ A chatbot that answers U.S. tax questions for international students. Instead of
 RAG-Tax-Advisor/
 │
 ├── app.py                      # Main chatbot — run this to ask tax questions
+├── evaluate.py                 # Offline evaluation — 5 metrics on 10 test questions
+├── stats.py                    # Production stats — p95 latency, fallback rate from query_log.jsonl
+├── ground_truth.json           # 10 test Q&A pairs with expected keywords
 ├── run_pipeline.py             # Runs all 5 data pipeline steps in order
 ├── requirements.txt            # Python dependencies (all free)
 ├── .env                        # Your Gemini API key (not committed to git)
@@ -349,6 +352,40 @@ All foreign nationals present in the U.S. on an F, J, M, or Q visa...
 ```
 
 No extra dependencies — the fallback uses already-retrieved chunks, requiring zero additional API calls.
+
+---
+
+### Feature 7 — Production Stats (`stats.py`)
+
+After using the chatbot, run `python stats.py` to compute real metrics from `query_log.jsonl`:
+
+```
+$ python stats.py
+==================================================
+  Production Stats from query_log.jsonl
+==================================================
+  Total queries logged : 24
+
+  Latency (end-to-end):
+    Mean              : 2.41s
+    p50 (median)      : 2.18s
+    p95               : 4.73s
+    p99               : 5.12s
+    Max               : 5.34s
+
+  Latency breakdown (mean):
+    Retrieval         : 0.14s
+    LLM (Gemini)      : 2.27s
+
+  Retrieval confidence:
+    Mean              : 0.823
+    Min               : 0.712
+
+  Fallback rate       : 4.2%  (1/24 queries used extractive fallback)
+==================================================
+```
+
+This gives you real, measurable numbers from actual usage — not estimates.
 
 ---
 
