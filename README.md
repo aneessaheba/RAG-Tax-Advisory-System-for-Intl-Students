@@ -118,7 +118,7 @@ A chatbot that answers U.S. tax questions for international students. Instead of
 ║  Gemini generates answer                                                     ║
 ║       │                                                                      ║
 ║       ├──▶ Context Relevance  — cosine(question, chunks)                     ║
-║       ├──▶ Hit Rate           — do chunks contain expected keywords?         ║
+║       ├──▶ Precision@5        — fraction of top-5 chunks with expected keywords║
 ║       ├──▶ Answer Relevance   — cosine(question, answer)                     ║
 ║       ├──▶ Faithfulness       — cosine(answer, avg chunks)                   ║
 ║       └──▶ LLM Judge          — Gemini scores correctness +                  ║
@@ -474,7 +474,7 @@ Evaluated on 10 international student tax questions across 5 metrics (0.0–1.0,
 | Metric | What it measures |
 |--------|-----------------|
 | **Context Relevance** | Cosine similarity between the question and retrieved chunks — are we fetching the right docs? |
-| **Hit Rate** | Did retrieved chunks collectively contain all expected answer keywords? |
+| **Precision@K** | Fraction of top-K retrieved chunks that contain at least one expected keyword — more granular than binary hit/miss |
 | **Answer Relevance** | Cosine similarity between the question and the generated answer — does it address what was asked? |
 | **Faithfulness** | Cosine similarity between the generated answer and retrieved context — is the answer grounded? |
 | **LLM Judge** | Gemini scores correctness + completeness + groundedness (avg of 3 sub-scores, 0–1 each) |
