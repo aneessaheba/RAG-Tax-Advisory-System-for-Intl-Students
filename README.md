@@ -446,9 +446,36 @@ echo "GEMINI_API_KEY=your_key_here" > .env
 # 3. Run the data pipeline (only needed once, takes a few minutes)
 python run_pipeline.py
 
-# 4. Start the chatbot
+# 4a. Start the terminal chatbot
 python app.py
+
+# 4b. OR start the web UI (opens at http://localhost:8000)
+uvicorn server:app --reload
 ```
+
+### Web UI
+
+The web interface (`server.py` + `static/`) gives the same RAG pipeline a browser-based chat interface:
+
+```
++-------------------+------------------------------------------+
+|  Student Profile  |  US Tax Advisor                          |
+|                   |                                          |
+|  Visa Type: F-1   |                    Do I need to file?    |
+|  Country: India   |                    ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓  |
+|  Tax Year: 2024   |                                          |
+|  ...              |  ▓ Yes, as an F-1 student you must...    |
+|                   |    2.3s · Confidence: 0.84               |
+|  [Save Profile]   |    👍  👎                               |
+|                   |                                          |
+|                   |  [ Ask a tax question...  ] [ Send ]     |
++-------------------+------------------------------------------+
+```
+
+- Fill in your profile on the left → click **Save Profile**
+- Type a question → press **Enter** or click **Send**
+- Rate each answer with 👍 / 👎 (saved to `feedback_log.jsonl`)
+- Latency and confidence shown under each answer
 
 ---
 
