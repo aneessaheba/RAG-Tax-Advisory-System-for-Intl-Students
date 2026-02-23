@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>US Tax Advisor</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="layout">
+
+    <!-- Sidebar: Student Profile -->
+    <aside class="sidebar">
+      <h2>Student Profile</h2>
+      <div class="divider"></div>
+
+      <form id="profile-form">
+
+        <div class="field">
+          <label>Visa Type</label>
+          <select name="visa_type">
+            <option value="F-1">F-1</option>
+            <option value="J-1">J-1</option>
+            <option value="M-1">M-1</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Home Country</label>
+          <input type="text" name="home_country" value="India" placeholder="e.g. India">
+        </div>
+
+        <div class="field">
+          <label>First U.S. Entry Year</label>
+          <input type="text" name="first_entry_year" value="2023" placeholder="e.g. 2023">
+        </div>
+
+        <div class="field">
+          <label>Tax Year</label>
+          <input type="text" name="tax_year" value="2024" placeholder="e.g. 2024">
+        </div>
+
+        <div class="field">
+          <label>Income Types</label>
+          <div class="checkboxes">
+            <label class="checkbox-label"><input type="checkbox" name="income_types" value="Wages/Salary"> Wages / Salary</label>
+            <label class="checkbox-label"><input type="checkbox" name="income_types" value="Scholarship/Fellowship"> Scholarship / Fellowship</label>
+            <label class="checkbox-label"><input type="checkbox" name="income_types" value="Stipend"> Stipend</label>
+            <label class="checkbox-label"><input type="checkbox" name="income_types" value="On-campus job"> On-campus job</label>
+            <label class="checkbox-label"><input type="checkbox" name="income_types" value="OPT/CPT"> OPT / CPT</label>
+            <label class="checkbox-label"><input type="checkbox" name="income_types" value="None" checked> None</label>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>U.S. State</label>
+          <input type="text" name="state" value="CA" placeholder="e.g. CA">
+        </div>
+
+        <div class="field">
+          <label class="checkbox-label">
+            <input type="checkbox" name="has_ssn"> Have SSN or ITIN?
+          </label>
+        </div>
+
+        <button type="submit" class="btn-primary">Save Profile</button>
+        <div id="profile-status"></div>
+
+      </form>
+
+      <div class="divider"></div>
+      <p class="note">General guidance only.<br>Not professional tax advice.</p>
+    </aside>
+
+    <!-- Main: Chat -->
+    <main class="chat-area">
+      <header class="chat-header">
+        <h1>US Tax Advisor</h1>
+        <p>Tax guidance for international students — grounded in IRS publications and tax treaties.</p>
+      </header>
+
+      <div class="messages" id="messages">
+        <div class="bot-msg welcome">
+          <p>Fill in your student profile on the left, then ask a tax question below.</p>
+          <p class="examples">
+            Try: "Do I need to file Form 8843?" &nbsp;·&nbsp;
+            "Am I exempt from FICA taxes?" &nbsp;·&nbsp;
+            "What is the substantial presence test?"
+          </p>
+        </div>
+      </div>
+
+      <div class="input-area">
+        <input type="text" id="question-input" placeholder="Ask a tax question..." autocomplete="off" disabled>
+        <button id="send-btn" class="btn-send" disabled>Send</button>
+      </div>
+    </main>
+
+  </div>
+  <script src="/static/app.js"></script>
+</body>
+</html>
