@@ -355,7 +355,39 @@ No extra dependencies — the fallback uses already-retrieved chunks, requiring 
 
 ---
 
-### Feature 7 — Production Stats (`stats.py`)
+### Feature 7 — Exponential Backoff Retry for Rate Limits
+
+When Gemini returns a 429 (rate limit) or any API error, the bot doesn't immediately fall back — it retries up to 3 times with increasing wait times before giving up.
+
+```
+Attempt 1 → Gemini call fails (429 rate limit)
+
+  wait 2s
+Attempt 2 → retry → fails again
+
+  wait 4s
+Attempt 3 → retry → succeeds ✅  (or falls back to raw chunks if still failing)
+```
+
+**What the user sees:**
+```
+[Gemini error (attempt 1/3): 429 Resource exhausted]
+[Retry 2/3 after 2s...]
+[Gemini error (attempt 2/3): 429 Resource exhausted]
+[Retry 3/3 after 4s...]
+```
+
+Configured in `app.py`:
+```python
+RETRY_ATTEMPTS = 3      # max retries before fallback
+RETRY_BASE_DELAY = 2    # seconds — doubles each attempt: 2s, 4s
+```
+
+Without this, a single transient rate limit error would immediately trigger the extractive fallback. With it, temporary errors are recovered automatically.
+
+---
+
+### Feature 8 — Production Stats (`stats.py`)
 
 After using the chatbot, run `python stats.py` to compute real metrics from `query_log.jsonl`:
 
