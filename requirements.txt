@@ -5,3 +5,5 @@ google-genai
 python-dotenv
 numpy
 rank_bm25
+fastapi
+uvicorn
