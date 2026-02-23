@@ -10,6 +10,7 @@ import os
 import json
 import time
 from datetime import datetime
+
 from dotenv import load_dotenv
 import chromadb
 from google import genai
@@ -25,6 +26,8 @@ FEEDBACK_LOG_PATH = os.path.join(BASE_DIR, 'feedback_log.jsonl')
 COLLECTION_NAME = "tax_docs"
 TOP_K = 5
 CONFIDENCE_THRESHOLD = 0.70  # vector similarity floor for tax questions
+RETRY_ATTEMPTS = 3           # max Gemini retries before falling back
+RETRY_BASE_DELAY = 2         # seconds — doubles each attempt: 2s, 4s, 8s
 
 # Must contain at least one of these for the question to be considered tax-related
 TAX_KEYWORDS = {
@@ -144,8 +147,14 @@ def extractive_fallback(chunks):
 
 def ask_gemini(student_info, context, question, chunks):
     """
-    Send the question + context to Gemini.
-    If Gemini fails for any reason, falls back to extractive_fallback().
+    Send the question + context to Gemini with exponential backoff retry.
+
+    Retry logic:
+      - Attempt 1: try immediately
+      - Attempt 2: wait 2s, retry
+      - Attempt 3: wait 4s, retry
+      - All failed: fall back to extractive_fallback() (no Gemini call)
+
     Returns (answer, latency_s, input_tokens, output_tokens, used_fallback).
     """
     prompt = f"""You are a helpful tax advisor for international students in the U.S.
@@ -170,18 +179,27 @@ Student's question: {question}
 
 Provide a clear, helpful answer:"""
 
+    client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
     t0 = time.time()
-    try:
-        client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
-        response = client.models.generate_content(model="gemini-2.0-flash", contents=prompt)
-        latency = round(time.time() - t0, 2)
-        answer = response.text
-        return answer, latency, estimate_tokens(prompt), estimate_tokens(answer), False
-    except Exception as e:
-        latency = round(time.time() - t0, 2)
-        print(f"  [Gemini error: {e}]")
-        answer = extractive_fallback(chunks)
-        return answer, latency, 0, 0, True
+    last_error = None
+
+    for attempt in range(1, RETRY_ATTEMPTS + 1):
+        if attempt > 1:
+            delay = RETRY_BASE_DELAY * (2 ** (attempt - 2))  # 2s, 4s
+            print(f"  [Retry {attempt}/{RETRY_ATTEMPTS} after {delay}s...]")
+            time.sleep(delay)
+        try:
+            response = client.models.generate_content(model="gemini-2.0-flash", contents=prompt)
+            latency = round(time.time() - t0, 2)
+            return response.text, latency, estimate_tokens(prompt), estimate_tokens(response.text), False
+        except Exception as e:
+            last_error = e
+            print(f"  [Gemini error (attempt {attempt}/{RETRY_ATTEMPTS}): {e}]")
+
+    # All retries exhausted — use extractive fallback
+    latency = round(time.time() - t0, 2)
+    answer = extractive_fallback(chunks)
+    return answer, latency, 0, 0, True
 
 
 def main():
