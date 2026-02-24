@@ -5,3 +5,4 @@ numpy
 rank_bm25
 fastapi
 uvicorn
+supabase

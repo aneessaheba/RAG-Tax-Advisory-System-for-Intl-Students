@@ -19,6 +19,7 @@ from pydantic import BaseModel
 from dotenv import load_dotenv
 import chromadb
 from google import genai
+from supabase import create_client, Client
 from retriever import HybridRetriever
 
 load_dotenv()
@@ -27,6 +28,15 @@ BASE_DIR = os.path.dirname(__file__)
 CHROMA_DIR = os.path.join(BASE_DIR, 'tax_rag_data', 'data_work', 'chroma_db')
 QUERY_LOG_PATH = os.path.join(BASE_DIR, 'query_log.jsonl')
 FEEDBACK_LOG_PATH = os.path.join(BASE_DIR, 'feedback_log.jsonl')
+
+# Supabase client — None if env vars are not set (falls back to local files)
+_supabase_url = os.environ.get("SUPABASE_URL", "")
+_supabase_key = os.environ.get("SUPABASE_KEY", "")
+supabase: Client | None = (
+    create_client(_supabase_url, _supabase_key)
+    if _supabase_url and _supabase_key
+    else None
+)
 COLLECTION_NAME = "tax_docs"
 TOP_K = 5
 CONFIDENCE_THRESHOLD = 0.70
@@ -188,18 +198,25 @@ def chat(req: ChatRequest):
     total_latency = round(retrieval_latency + llm_latency, 2)
 
     # Log query
-    with open(QUERY_LOG_PATH, 'a') as f:
-        f.write(json.dumps({
-            "timestamp": datetime.utcnow().isoformat(),
-            "question": question,
-            "confidence": round(confidence, 4),
-            "retrieval_latency_s": retrieval_latency,
-            "llm_latency_s": llm_latency,
-            "total_latency_s": total_latency,
-            "input_tokens_est": input_tokens,
-            "output_tokens_est": output_tokens,
-            "used_fallback": used_fallback,
-        }) + "\n")
+    query_entry = {
+        "timestamp": datetime.utcnow().isoformat(),
+        "question": question,
+        "confidence": round(confidence, 4),
+        "retrieval_latency_s": retrieval_latency,
+        "llm_latency_s": llm_latency,
+        "total_latency_s": total_latency,
+        "input_tokens_est": input_tokens,
+        "output_tokens_est": output_tokens,
+        "used_fallback": used_fallback,
+    }
+    if supabase:
+        try:
+            supabase.table("query_logs").insert(query_entry).execute()
+        except Exception as e:
+            print(f"Supabase query log error: {e}")
+    else:
+        with open(QUERY_LOG_PATH, 'a') as f:
+            f.write(json.dumps(query_entry) + "\n")
 
     return {
         "answer": answer,
@@ -222,21 +239,31 @@ def feedback(req: FeedbackRequest):
         "answer_snippet": req.answer[:200],
         "rating": req.rating,
     }
-    with open(FEEDBACK_LOG_PATH, 'a') as f:
-        f.write(json.dumps(entry) + "\n")
+    if supabase:
+        try:
+            supabase.table("feedback_logs").insert(entry).execute()
+        except Exception as e:
+            print(f"Supabase feedback log error: {e}")
+    else:
+        with open(FEEDBACK_LOG_PATH, 'a') as f:
+            f.write(json.dumps(entry) + "\n")
     return {"status": "ok"}
 
 
 @app.get("/logs/feedback")
 def logs_feedback():
-    if not os.path.exists(FEEDBACK_LOG_PATH):
-        return {"entries": [], "total": 0}
-    entries = []
-    with open(FEEDBACK_LOG_PATH) as f:
-        for line in f:
-            line = line.strip()
-            if line:
-                entries.append(json.loads(line))
+    if supabase:
+        result = supabase.table("feedback_logs").select("*").order("timestamp", desc=True).execute()
+        entries = result.data
+    elif os.path.exists(FEEDBACK_LOG_PATH):
+        entries = []
+        with open(FEEDBACK_LOG_PATH) as f:
+            for line in f:
+                line = line.strip()
+                if line:
+                    entries.append(json.loads(line))
+    else:
+        entries = []
     thumbs_up = sum(1 for e in entries if e.get("rating") == 1)
     thumbs_down = sum(1 for e in entries if e.get("rating") == 0)
     return {"total": len(entries), "thumbs_up": thumbs_up, "thumbs_down": thumbs_down, "entries": entries}
@@ -244,12 +271,16 @@ def logs_feedback():
 
 @app.get("/logs/queries")
 def logs_queries():
-    if not os.path.exists(QUERY_LOG_PATH):
-        return {"entries": [], "total": 0}
-    entries = []
-    with open(QUERY_LOG_PATH) as f:
-        for line in f:
-            line = line.strip()
-            if line:
-                entries.append(json.loads(line))
+    if supabase:
+        result = supabase.table("query_logs").select("*").order("timestamp", desc=True).execute()
+        entries = result.data
+    elif os.path.exists(QUERY_LOG_PATH):
+        entries = []
+        with open(QUERY_LOG_PATH) as f:
+            for line in f:
+                line = line.strip()
+                if line:
+                    entries.append(json.loads(line))
+    else:
+        entries = []
     return {"total": len(entries), "entries": entries}
