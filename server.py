@@ -225,3 +225,31 @@ def feedback(req: FeedbackRequest):
     with open(FEEDBACK_LOG_PATH, 'a') as f:
         f.write(json.dumps(entry) + "\n")
     return {"status": "ok"}
+
+
+@app.get("/logs/feedback")
+def logs_feedback():
+    if not os.path.exists(FEEDBACK_LOG_PATH):
+        return {"entries": [], "total": 0}
+    entries = []
+    with open(FEEDBACK_LOG_PATH) as f:
+        for line in f:
+            line = line.strip()
+            if line:
+                entries.append(json.loads(line))
+    thumbs_up = sum(1 for e in entries if e.get("rating") == 1)
+    thumbs_down = sum(1 for e in entries if e.get("rating") == 0)
+    return {"total": len(entries), "thumbs_up": thumbs_up, "thumbs_down": thumbs_down, "entries": entries}
+
+
+@app.get("/logs/queries")
+def logs_queries():
+    if not os.path.exists(QUERY_LOG_PATH):
+        return {"entries": [], "total": 0}
+    entries = []
+    with open(QUERY_LOG_PATH) as f:
+        for line in f:
+            line = line.strip()
+            if line:
+                entries.append(json.loads(line))
+    return {"total": len(entries), "entries": entries}
