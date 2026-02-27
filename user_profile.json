@@ -2,10 +2,10 @@
   "visa_type": "F-1",
   "home_country": "India",
   "first_entry_year": "2025",
-  "tax_year": "2025",
+  "tax_year": "2026",
   "income_types": [
-    "On-camous job"
+    "On campus job"
   ],
-  "state": "CA",
+  "state": "yes",
   "has_ssn_or_itin": true
 }
