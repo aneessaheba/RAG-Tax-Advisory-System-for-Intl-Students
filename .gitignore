@@ -17,3 +17,6 @@ tax_rag_data/data_work/embedded_chunks/*
 query_log.jsonl
 feedback_log.jsonl
 evaluation_results.json
+
+# ChromaDB runtime database (changes on every query)
+*.sqlite3
