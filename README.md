@@ -312,7 +312,7 @@ After every answer, the user can rate it helpful or not. Ratings are saved to `f
 **In the chat:**
 ```
 Was this helpful? (y/n, or press Enter to skip): y
-  Feedback recorded: 👍 Helpful
+  Feedback recorded: [+] Helpful
 ```
 
 **Sample `feedback_log.jsonl` entry:**
@@ -366,7 +366,7 @@ Attempt 1 → Gemini call fails (429 rate limit)
 Attempt 2 → retry → fails again
 
   wait 4s
-Attempt 3 → retry → succeeds ✅  (or falls back to raw chunks if still failing)
+Attempt 3 → retry → succeeds YES  (or falls back to raw chunks if still failing)
 ```
 
 **What the user sees:**
@@ -466,7 +466,7 @@ The web interface (`server.py` + `static/`) gives the same RAG pipeline a browse
 |  Tax Year: 2024   |                                          |
 |  ...              |  ▓ Yes, as an F-1 student you must...    |
 |                   |    2.3s · Confidence: 0.84               |
-|  [Save Profile]   |    👍  👎                               |
+|  [Save Profile]   |    [+]  [-]                               |
 |                   |                                          |
 |                   |  [ Ask a tax question...  ] [ Send ]     |
 +-------------------+------------------------------------------+
@@ -474,7 +474,7 @@ The web interface (`server.py` + `static/`) gives the same RAG pipeline a browse
 
 - Fill in your profile on the left → click **Save Profile**
 - Type a question → press **Enter** or click **Send**
-- Rate each answer with 👍 / 👎 (saved to `feedback_log.jsonl`)
+- Rate each answer with [+] / [-] (saved to `feedback_log.jsonl`)
 - Latency and confidence shown under each answer
 
 ---
@@ -501,16 +501,16 @@ Evaluated on 10 international student tax questions across 5 metrics (0.0–1.0,
 
 | # | Question | Ctx Rel | Hit | Ans Rel | Faith |
 |---|----------|---------|-----|---------|-------|
-| 1 | Do F-1 students need to file Form 8843? | 0.610 | ❌ | 0.624 | 0.727 |
-| 2 | Can nonresident aliens claim the standard deduction? | 0.543 | ✅ | 0.757 | 0.758 |
-| 3 | What tax return form do nonresident aliens file? | 0.690 | ✅ | 0.797 | 0.770 |
-| 4 | Are F-1 students exempt from FICA taxes? | 0.611 | ✅ | 0.866 | 0.811 |
-| 5 | What is the substantial presence test? | 0.498 | ✅ | 0.605 | 0.872 |
-| 6 | Does the US-India tax treaty benefit students? | 0.600 | ✅ | 0.487 | 0.682 |
-| 7 | What is Form 1098-T used for? | 0.621 | ✅ | 0.784 | 0.868 |
-| 8 | Do international students on OPT need to pay taxes? | 0.637 | ❌ | 0.707 | 0.707 |
-| 9 | What is Form W-8BEN used for? | 0.395 | ✅ | 0.797 | 0.752 |
-| 10 | When is the tax filing deadline for nonresident aliens? | 0.637 | ❌ | 0.504 | 0.433 |
+| 1 | Do F-1 students need to file Form 8843? | 0.610 | NO | 0.624 | 0.727 |
+| 2 | Can nonresident aliens claim the standard deduction? | 0.543 | YES | 0.757 | 0.758 |
+| 3 | What tax return form do nonresident aliens file? | 0.690 | YES | 0.797 | 0.770 |
+| 4 | Are F-1 students exempt from FICA taxes? | 0.611 | YES | 0.866 | 0.811 |
+| 5 | What is the substantial presence test? | 0.498 | YES | 0.605 | 0.872 |
+| 6 | Does the US-India tax treaty benefit students? | 0.600 | YES | 0.487 | 0.682 |
+| 7 | What is Form 1098-T used for? | 0.621 | YES | 0.784 | 0.868 |
+| 8 | Do international students on OPT need to pay taxes? | 0.637 | NO | 0.707 | 0.707 |
+| 9 | What is Form W-8BEN used for? | 0.395 | YES | 0.797 | 0.752 |
+| 10 | When is the tax filing deadline for nonresident aliens? | 0.637 | NO | 0.504 | 0.433 |
 | | **AVERAGE** | **0.584** | **0.70** | **0.693** | **0.738** |
 
 ### v2 — Hybrid retrieval (vector + BM25 + RRF)
@@ -519,16 +519,16 @@ Evaluated on 10 international student tax questions across 5 metrics (0.0–1.0,
 
 | # | Question | Ctx Rel | Hit | Ans Rel | Faith |
 |---|----------|---------|-----|---------|-------|
-| 1 | Do F-1 students need to file Form 8843? | 0.560 | ✅ | 0.864 | 0.707 |
-| 2 | Can nonresident aliens claim the standard deduction? | 0.518 | ✅ | 0.806 | 0.654 |
-| 3 | What tax return form do nonresident aliens file? | 0.666 | ✅ | 0.802 | 0.698 |
-| 4 | Are F-1 students exempt from FICA taxes? | 0.611 | ✅ | 0.841 | 0.797 |
-| 5 | What is the substantial presence test? | 0.457 | ✅ | 0.605 | 0.884 |
-| 6 | Does the US-India tax treaty benefit students? | 0.547 | ✅ | 0.794 | 0.655 |
-| 7 | What is Form 1098-T used for? | 0.585 | ✅ | 0.784 | 0.849 |
-| 8 | Do international students on OPT need to pay taxes? | 0.602 | ✅ | 0.565 | 0.511 |
-| 9 | What is Form W-8BEN used for? | 0.363 | ✅ | 0.774 | 0.722 |
-| 10 | When is the tax filing deadline for nonresident aliens? | 0.582 | ✅ | 0.569 | 0.514 |
+| 1 | Do F-1 students need to file Form 8843? | 0.560 | YES | 0.864 | 0.707 |
+| 2 | Can nonresident aliens claim the standard deduction? | 0.518 | YES | 0.806 | 0.654 |
+| 3 | What tax return form do nonresident aliens file? | 0.666 | YES | 0.802 | 0.698 |
+| 4 | Are F-1 students exempt from FICA taxes? | 0.611 | YES | 0.841 | 0.797 |
+| 5 | What is the substantial presence test? | 0.457 | YES | 0.605 | 0.884 |
+| 6 | Does the US-India tax treaty benefit students? | 0.547 | YES | 0.794 | 0.655 |
+| 7 | What is Form 1098-T used for? | 0.585 | YES | 0.784 | 0.849 |
+| 8 | Do international students on OPT need to pay taxes? | 0.602 | YES | 0.565 | 0.511 |
+| 9 | What is Form W-8BEN used for? | 0.363 | YES | 0.774 | 0.722 |
+| 10 | When is the tax filing deadline for nonresident aliens? | 0.582 | YES | 0.569 | 0.514 |
 | | **AVERAGE** | **0.549** | **1.00** | **0.740** | **0.699** |
 
 ### v3 — LLM-as-a-Judge added
@@ -537,16 +537,16 @@ Evaluated on 10 international student tax questions across 5 metrics (0.0–1.0,
 
 | # | Question | Ctx Rel | Hit | Ans Rel | Faith | Judge |
 |---|----------|---------|-----|---------|-------|-------|
-| 1 | Do F-1 students need to file Form 8843? | 0.560 | ✅ | 0.864 | 0.707 | 1.000 |
-| 2 | Can nonresident aliens claim the standard deduction? | 0.518 | ✅ | 0.818 | 0.671 | 1.000 |
-| 3 | What tax return form do nonresident aliens file? | 0.666 | ✅ | 0.802 | 0.698 | 1.000 |
-| 4 | Are F-1 students exempt from FICA taxes? | 0.611 | ✅ | 0.867 | 0.790 | 0.700 |
-| 5 | What is the substantial presence test? | 0.457 | ✅ | 0.597 | 0.882 | 1.000 |
-| 6 | Does the US-India tax treaty benefit students? | 0.547 | ✅ | 0.668 | 0.550 | 0.000 |
-| 7 | What is Form 1098-T used for? | 0.585 | ✅ | 0.792 | 0.874 | 1.000 |
-| 8 | Do international students on OPT need to pay taxes? | 0.602 | ✅ | 0.493 | 0.406 | 0.000 |
-| 9 | What is Form W-8BEN used for? | 0.363 | ✅ | 0.863 | 0.668 | 1.000 |
-| 10 | When is the tax filing deadline for nonresident aliens? | 0.582 | ✅ | 0.528 | 0.595 | 1.000 |
+| 1 | Do F-1 students need to file Form 8843? | 0.560 | YES | 0.864 | 0.707 | 1.000 |
+| 2 | Can nonresident aliens claim the standard deduction? | 0.518 | YES | 0.818 | 0.671 | 1.000 |
+| 3 | What tax return form do nonresident aliens file? | 0.666 | YES | 0.802 | 0.698 | 1.000 |
+| 4 | Are F-1 students exempt from FICA taxes? | 0.611 | YES | 0.867 | 0.790 | 0.700 |
+| 5 | What is the substantial presence test? | 0.457 | YES | 0.597 | 0.882 | 1.000 |
+| 6 | Does the US-India tax treaty benefit students? | 0.547 | YES | 0.668 | 0.550 | 0.000 |
+| 7 | What is Form 1098-T used for? | 0.585 | YES | 0.792 | 0.874 | 1.000 |
+| 8 | Do international students on OPT need to pay taxes? | 0.602 | YES | 0.493 | 0.406 | 0.000 |
+| 9 | What is Form W-8BEN used for? | 0.363 | YES | 0.863 | 0.668 | 1.000 |
+| 10 | When is the tax filing deadline for nonresident aliens? | 0.582 | YES | 0.528 | 0.595 | 1.000 |
 | | **AVERAGE** | **0.549** | **1.00** | **0.729** | **0.684** | **0.770** |
 
 **LLM Judge findings:** 7 of 10 answers scored 1.0, identifying two weak answers — Q6 (India treaty answer too vague to be actionable) and Q8 (OPT answer referenced tax software instead of explaining the tax obligation directly). Cosine similarity alone would not have caught these gaps.
@@ -556,10 +556,10 @@ Evaluated on 10 international student tax questions across 5 metrics (0.0–1.0,
 | Metric | v1 (vector) | v2 (hybrid) | v3 (+ LLM Judge) | v4 (+ Precision@K) | Change v1→v4 |
 |--------|------------|-------------|-----------------|-------------------|-------------|
 | Context Relevance | 0.584 | 0.549 | 0.549 | 0.549 | -0.035 |
-| **Hit Rate / P@5** | **0.70** | **1.00** | **1.00** | **0.82** | **+0.12 ✅** |
-| **Answer Relevance** | **0.693** | **0.740** | **0.729** | **0.729** | **+0.036 ✅** |
+| **Hit Rate / P@5** | **0.70** | **1.00** | **1.00** | **0.82** | **+0.12 YES** |
+| **Answer Relevance** | **0.693** | **0.740** | **0.729** | **0.729** | **+0.036 YES** |
 | Faithfulness | 0.738 | 0.699 | 0.684 | 0.684 | -0.054 |
-| **LLM Judge** | — | — | **0.770** | **0.770** | **new ✅** |
+| **LLM Judge** | — | — | **0.770** | **0.770** | **new YES** |
 
 > v4 note: Precision@5 (0.82) replaces binary Hit Rate. It measures the fraction of the top-5 retrieved chunks that actually contain expected keywords — a stricter, more informative metric. 0.82 means on average 4.1 of 5 retrieved chunks are relevant.
 
