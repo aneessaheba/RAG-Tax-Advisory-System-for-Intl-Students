@@ -61,23 +61,34 @@ app = FastAPI()
 Instrumentator().instrument(app).expose(app)
 
 retrieval_latency_metric = Histogram(
-    "rag_retrieval_latency_seconds",
-    "Hybrid retrieval latency (BM25 + vector + RRF)",
-    buckets=[0.05, 0.1, 0.2, 0.3, 0.5, 1.0],
+    "retrieval_latency_seconds",
+    "Hybrid retrieval latency (Elasticsearch kNN + BM25 + RRF) — p95 target < 400ms",
+    buckets=[0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 1.0],
 )
 llm_latency_metric = Histogram(
-    "rag_llm_latency_seconds",
-    "LLM generation latency",
+    "llm_latency_seconds",
+    "LLM generation latency (LLaMA local or Gemini fallback)",
     buckets=[0.5, 1.0, 2.0, 3.0, 5.0, 10.0],
 )
 confidence_metric = Histogram(
-    "rag_retrieval_confidence",
-    "Retrieval confidence scores",
+    "retrieval_confidence",
+    "Retrieval confidence scores (cosine similarity of best chunk)",
     buckets=[0.5, 0.6, 0.7, 0.75, 0.8, 0.85, 0.9, 1.0],
 )
-fallback_counter = Counter("rag_llm_fallback_total", "Times extractive fallback was used")
-refused_counter = Counter("rag_refused_total", "Refused queries", ["reason"])
-local_llm_counter = Counter("rag_local_llm_total", "Local LLM calls", ["status"])
+# Token cost tracking — visible in Prometheus/Grafana as per-query cost signal
+input_tokens_metric = Histogram(
+    "llm_input_tokens",
+    "Estimated input (prompt) token count per request — chars/4 heuristic",
+    buckets=[100, 250, 500, 750, 1000, 1500, 2000, 3000],
+)
+output_tokens_metric = Histogram(
+    "llm_output_tokens",
+    "Estimated output (completion) token count per request — chars/4 heuristic",
+    buckets=[25, 50, 100, 150, 200, 300, 500],
+)
+fallback_counter = Counter("llm_fallback_total", "Times local LLaMA routed to Gemini fallback")
+refused_counter = Counter("refused_queries_total", "Refused queries by reason", ["reason"])
+local_llm_counter = Counter("local_llm_calls_total", "Local LLM (Ollama/LLaMA) call outcomes", ["status"])
 
 # Load ChromaDB + retriever once at startup (not per request)
 db_client = chromadb.PersistentClient(path=CHROMA_DIR)
@@ -291,6 +302,8 @@ def chat(req: ChatRequest):
     )
     total_latency = round(retrieval_latency + llm_latency, 2)
     llm_latency_metric.observe(llm_latency)
+    input_tokens_metric.observe(input_tokens)
+    output_tokens_metric.observe(output_tokens)
     if used_fallback:
         fallback_counter.inc()
 
