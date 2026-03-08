@@ -58,6 +58,24 @@ def precision_at_k(chunk_texts, expected_keywords, k=None):
     return round(relevant / k, 4)
 
 
+def recall_at_k(chunk_texts, expected_keywords, k=None):
+    """
+    Fraction of expected keywords that appear in at least one of the top-K chunks.
+    Unlike Precision@K (chunk-centric), Recall@K is keyword-centric:
+    E.g. 3 of 4 expected keywords found anywhere in top-5 -> Recall@5 = 0.75
+    """
+    if not expected_keywords:
+        return 0.0
+    if k is None:
+        k = len(chunk_texts)
+    chunks_to_check = chunk_texts[:k]
+    found = sum(
+        1 for kw in expected_keywords
+        if any(kw.lower() in chunk.lower() for chunk in chunks_to_check)
+    )
+    return round(found / len(expected_keywords), 4)
+
+
 def answer_relevance(question_embedding, answer_embedding):
     """Cosine similarity between the question and the generated answer."""
     return round(cosine_similarity(question_embedding, answer_embedding), 4)
@@ -165,14 +183,14 @@ def main():
 
     results = []
     totals = {
-        "context_relevance": 0, "precision_at_k": 0,
+        "context_relevance": 0, "precision_at_k": 0, "recall_at_k": 0,
         "answer_relevance": 0, "faithfulness": 0,
         "llm_judge": 0,
     }
 
     print(f"\nRunning evaluation on {len(test_cases)} questions...\n")
-    print(f"{'#':<4} {'Question':<50} {'CtxRel':>7} {'P@5':>6} {'AnsRel':>7} {'Faith':>7} {'Judge':>7}")
-    print("-" * 98)
+    print(f"{'#':<4} {'Question':<50} {'CtxRel':>7} {'P@5':>6} {'R@5':>6} {'AnsRel':>7} {'Faith':>7} {'Judge':>7}")
+    print("-" * 106)
 
     for i, tc in enumerate(test_cases):
         question = tc["question"]
@@ -193,6 +211,7 @@ def main():
         # Compute cosine-based metrics
         m_context_relevance = context_relevance(q_embedding, chunk_texts, embed_model)
         m_precision = precision_at_k(chunk_texts, expected_keywords, k=TOP_K)
+        m_recall = recall_at_k(chunk_texts, expected_keywords, k=TOP_K)
         m_answer_relevance = answer_relevance(q_embedding, answer_embedding)
         m_faithfulness = faithfulness(answer_embedding, chunk_texts, embed_model)
 
@@ -207,6 +226,7 @@ def main():
             "metrics": {
                 "context_relevance": m_context_relevance,
                 "precision_at_k": m_precision,
+                "recall_at_k": m_recall,
                 "answer_relevance": m_answer_relevance,
                 "faithfulness": m_faithfulness,
                 "llm_judge": m_judge,
@@ -219,13 +239,13 @@ def main():
             totals[k] += result["metrics"][k]
 
         short_q = question[:48] + ".." if len(question) > 48 else question
-        print(f"{i+1:<4} {short_q:<50} {m_context_relevance:>7.3f} {m_precision:>6.2f} {m_answer_relevance:>7.3f} {m_faithfulness:>7.3f} {m_judge:>7.3f}")
+        print(f"{i+1:<4} {short_q:<50} {m_context_relevance:>7.3f} {m_precision:>6.2f} {m_recall:>6.2f} {m_answer_relevance:>7.3f} {m_faithfulness:>7.3f} {m_judge:>7.3f}")
 
     n = len(test_cases)
     averages = {k: round(v / n, 4) for k, v in totals.items()}
 
-    print("-" * 98)
-    print(f"{'AVERAGE':<54} {averages['context_relevance']:>7.3f} {averages['precision_at_k']:>6.2f} {averages['answer_relevance']:>7.3f} {averages['faithfulness']:>7.3f} {averages['llm_judge']:>7.3f}")
+    print("-" * 106)
+    print(f"{'AVERAGE':<54} {averages['context_relevance']:>7.3f} {averages['precision_at_k']:>6.2f} {averages['recall_at_k']:>6.2f} {averages['answer_relevance']:>7.3f} {averages['faithfulness']:>7.3f} {averages['llm_judge']:>7.3f}")
 
     output = {
         "retrieval": "hybrid (vector + BM25 + RRF)",
@@ -243,6 +263,7 @@ def main():
     print("\nSummary:")
     print(f"  Context Relevance : {averages['context_relevance']:.3f}  (are retrieved chunks related to the question?)")
     print(f"  Precision@{TOP_K}       : {averages['precision_at_k']:.2f}   (fraction of top-{TOP_K} chunks that contain expected keywords)")
+    print(f"  Recall@{TOP_K}          : {averages['recall_at_k']:.2f}   (fraction of expected keywords found in top-{TOP_K} chunks)")
     print(f"  Answer Relevance  : {averages['answer_relevance']:.3f}  (does the answer address the question?)")
     print(f"  Faithfulness      : {averages['faithfulness']:.3f}  (is the answer grounded in retrieved context?)")
     print(f"  LLM Judge Score   : {averages['llm_judge']:.3f}  (Gemini rates correctness + completeness + groundedness)")

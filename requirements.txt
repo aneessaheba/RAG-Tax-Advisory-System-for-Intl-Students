@@ -6,3 +6,13 @@ rank_bm25
 fastapi
 uvicorn
 supabase
+sentence-transformers
+langchain
+langchain-google-genai
+langchain-community
+langchain-core
+ragas
+ollama
+prometheus-fastapi-instrumentator
+prometheus-client
+datasets

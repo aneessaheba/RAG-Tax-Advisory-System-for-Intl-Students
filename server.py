@@ -21,6 +21,8 @@ import chromadb
 from google import genai
 from supabase import create_client, Client
 from retriever import HybridRetriever
+from prometheus_fastapi_instrumentator import Instrumentator
+from prometheus_client import Counter, Histogram
 
 load_dotenv()
 
@@ -54,6 +56,28 @@ TAX_KEYWORDS = {
 }
 
 app = FastAPI()
+
+# Prometheus metrics
+Instrumentator().instrument(app).expose(app)
+
+retrieval_latency_metric = Histogram(
+    "rag_retrieval_latency_seconds",
+    "Hybrid retrieval latency (BM25 + vector + RRF)",
+    buckets=[0.05, 0.1, 0.2, 0.3, 0.5, 1.0],
+)
+llm_latency_metric = Histogram(
+    "rag_llm_latency_seconds",
+    "LLM generation latency",
+    buckets=[0.5, 1.0, 2.0, 3.0, 5.0, 10.0],
+)
+confidence_metric = Histogram(
+    "rag_retrieval_confidence",
+    "Retrieval confidence scores",
+    buckets=[0.5, 0.6, 0.7, 0.75, 0.8, 0.85, 0.9, 1.0],
+)
+fallback_counter = Counter("rag_llm_fallback_total", "Times extractive fallback was used")
+refused_counter = Counter("rag_refused_total", "Refused queries", ["reason"])
+local_llm_counter = Counter("rag_local_llm_total", "Local LLM calls", ["status"])
 
 # Load ChromaDB + retriever once at startup (not per request)
 db_client = chromadb.PersistentClient(path=CHROMA_DIR)
@@ -116,6 +140,25 @@ def extractive_fallback(chunks):
     return "\n\n".join(lines)
 
 
+def ask_ollama(prompt: str):
+    """
+    Attempt local LLM inference via Ollama (LLaMA 3.2).
+    Returns (answer, success_bool).
+    Falls back gracefully if Ollama is not running.
+    """
+    try:
+        import ollama
+        response = ollama.generate(
+            model="llama3.2",
+            prompt=prompt,
+            stream=False,
+            options={"temperature": 0.1, "num_predict": 512},
+        )
+        return response["response"].strip(), True
+    except Exception:
+        return None, False
+
+
 def ask_gemini(student_info, context, question, chunks):
     prompt = f"""You are a helpful tax advisor for international students in the U.S.
 
@@ -157,6 +200,53 @@ Provide a clear, helpful answer:"""
     return extractive_fallback(chunks), latency, 0, 0, True
 
 
+def ask_llm_with_routing(student_info, context, question, chunks):
+    """
+    Model routing: try local LLaMA (Ollama) first, fall back to Gemini.
+    Routing logic:
+      1. Build prompt
+      2. Try Ollama (local LLaMA 3.2) — fast, free, private
+      3. If Ollama unavailable/fails -> route to Gemini 2.0 Flash
+    Returns (answer, latency, input_tokens, output_tokens, used_fallback, model_used)
+    """
+    t0 = time.time()
+
+    prompt = f"""You are a helpful tax advisor for international students in the U.S.
+
+Student profile:
+- Visa: {student_info['visa_type']}
+- Home country: {student_info['home_country']}
+- First U.S. entry: {student_info['first_entry_year']}
+- Tax year: {student_info['tax_year']}
+- Income types: {', '.join(student_info.get('income_types', ['None']))}
+- State: {student_info['state']}
+- Has SSN/ITIN: {'Yes' if student_info.get('has_ssn_or_itin') else 'No'}
+
+Use ONLY the provided reference documents to answer. If the documents don't cover something,
+say so clearly. Always remind the student this is general guidance, not professional tax advice.
+
+--- REFERENCE DOCUMENTS ---
+{context}
+--- END DOCUMENTS ---
+
+Student's question: {question}
+
+Provide a clear, helpful answer:"""
+
+    # Try local LLaMA first
+    local_answer, local_success = ask_ollama(prompt)
+    if local_success:
+        latency = round(time.time() - t0, 2)
+        local_llm_counter.labels(status="success").inc()
+        return local_answer, latency, estimate_tokens(prompt), estimate_tokens(local_answer), False, "llama3.2"
+
+    # Route to Gemini
+    local_llm_counter.labels(status="fallback").inc()
+    answer, latency, inp, out, used_ext_fallback = ask_gemini(student_info, context, question, chunks)
+    model = "extractive_fallback" if used_ext_fallback else "gemini-2.0-flash"
+    return answer, latency, inp, out, used_ext_fallback, model
+
+
 # --- Routes ---
 @app.get("/")
 def index():
@@ -170,6 +260,7 @@ def chat(req: ChatRequest):
 
     # Guard 1: keyword filter
     if not is_tax_question(question):
+        refused_counter.labels(reason="not_tax_question").inc()
         return {
             "answer": "This doesn't appear to be a tax question. I can only help with U.S. tax questions for international students.",
             "confidence": 0,
@@ -181,9 +272,12 @@ def chat(req: ChatRequest):
     t_ret = time.time()
     chunks, confidence = retriever.retrieve(query, top_k=TOP_K)
     retrieval_latency = round(time.time() - t_ret, 2)
+    retrieval_latency_metric.observe(retrieval_latency)
+    confidence_metric.observe(confidence)
 
     # Guard 2: confidence threshold
     if confidence < CONFIDENCE_THRESHOLD:
+        refused_counter.labels(reason="low_confidence").inc()
         return {
             "answer": f"I couldn't find reliable information in my tax documents for that question (confidence: {confidence:.2f}). Try rephrasing, or consult a tax professional.",
             "confidence": round(confidence, 2),
@@ -192,10 +286,13 @@ def chat(req: ChatRequest):
         }
 
     context = format_context(chunks)
-    answer, llm_latency, input_tokens, output_tokens, used_fallback = ask_gemini(
+    answer, llm_latency, input_tokens, output_tokens, used_fallback, model_used = ask_llm_with_routing(
         student_info, context, question, chunks
     )
     total_latency = round(retrieval_latency + llm_latency, 2)
+    llm_latency_metric.observe(llm_latency)
+    if used_fallback:
+        fallback_counter.inc()
 
     # Log query
     query_entry = {
@@ -227,6 +324,7 @@ def chat(req: ChatRequest):
         "input_tokens": input_tokens,
         "output_tokens": output_tokens,
         "used_fallback": used_fallback,
+        "model_used": model_used,
         "refused": False,
     }
 
