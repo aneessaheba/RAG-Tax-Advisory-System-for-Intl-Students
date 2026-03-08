@@ -9,6 +9,7 @@ supabase
 sentence-transformers
 langchain
 langchain-google-genai
+langchain-openai
 langchain-community
 langchain-core
 ragas
@@ -16,3 +17,5 @@ ollama
 prometheus-fastapi-instrumentator
 prometheus-client
 datasets
+elasticsearch[async]
+openai

@@ -1,0 +1,22 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  # RAG Tax Advisor FastAPI server — exposes /metrics via prometheus-fastapi-instrumentator
+  - job_name: "rag_tax_advisor"
+    static_configs:
+      - targets: ["host.docker.internal:8000"]
+    metrics_path: "/metrics"
+
+  # Elasticsearch internal metrics (via Metricbeat or ES exporter is optional)
+  # Uncomment if you add elasticsearch-exporter to docker-compose.yml
+  # - job_name: "elasticsearch"
+  #   static_configs:
+  #     - targets: ["elasticsearch:9200"]
+  #   metrics_path: "/_prometheus/metrics"
+
+  # Prometheus self-monitoring
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]

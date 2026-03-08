@@ -1,0 +1,230 @@
+{
+  "__inputs": [],
+  "__requires": [
+    { "type": "grafana", "id": "grafana", "name": "Grafana", "version": "10.4.0" },
+    { "type": "datasource", "id": "prometheus", "name": "Prometheus", "version": "1.0.0" }
+  ],
+  "annotations": { "list": [] },
+  "description": "RAG Tax Advisor — retrieval latency, LLM latency, confidence, fallback rate, refusals",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "id": 100,
+      "title": "Throughput",
+      "type": "row"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "unit": "reqps"
+        }
+      },
+      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 1 },
+      "id": 1,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "orientation": "auto", "textMode": "auto", "colorMode": "background" },
+      "title": "Request Rate (QPS)",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "sum(rate(http_requests_total{job=\"rag_tax_advisor\"}[1m]))",
+          "legendFormat": "requests/sec"
+        }
+      ]
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "palette-classic" }, "unit": "short" }
+      },
+      "gridPos": { "h": 6, "w": 8, "x": 8, "y": 1 },
+      "id": 2,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background" },
+      "title": "Total Refusals (off-topic + low confidence)",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "sum(refused_queries_total{job=\"rag_tax_advisor\"})",
+          "legendFormat": "refusals"
+        }
+      ]
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "palette-classic" }, "unit": "short" }
+      },
+      "gridPos": { "h": 6, "w": 8, "x": 16, "y": 1 },
+      "id": 3,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background" },
+      "title": "Fallback Invocations (local LLaMA → Gemini)",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "sum(llm_fallback_total{job=\"rag_tax_advisor\"})",
+          "legendFormat": "fallbacks"
+        }
+      ]
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 7 },
+      "id": 101,
+      "title": "Latency",
+      "type": "row"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": { "unit": "s", "color": { "mode": "palette-classic" } }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "id": 4,
+      "title": "Retrieval Latency — p50 / p95 / p99",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(retrieval_latency_seconds_bucket{job=\"rag_tax_advisor\"}[5m])) by (le))",
+          "legendFormat": "p50"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(retrieval_latency_seconds_bucket{job=\"rag_tax_advisor\"}[5m])) by (le))",
+          "legendFormat": "p95"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(retrieval_latency_seconds_bucket{job=\"rag_tax_advisor\"}[5m])) by (le))",
+          "legendFormat": "p99"
+        }
+      ]
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": { "unit": "s", "color": { "mode": "palette-classic" } }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "id": 5,
+      "title": "LLM Generation Latency — p50 / p95 / p99",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(llm_latency_seconds_bucket{job=\"rag_tax_advisor\"}[5m])) by (le))",
+          "legendFormat": "p50"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(llm_latency_seconds_bucket{job=\"rag_tax_advisor\"}[5m])) by (le))",
+          "legendFormat": "p95"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(llm_latency_seconds_bucket{job=\"rag_tax_advisor\"}[5m])) by (le))",
+          "legendFormat": "p99"
+        }
+      ]
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 16 },
+      "id": 102,
+      "title": "Retrieval Quality",
+      "type": "row"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": { "mode": "palette-classic" },
+          "min": 0,
+          "max": 1
+        }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 17 },
+      "id": 6,
+      "title": "Retrieval Confidence Score Distribution",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(retrieval_confidence_bucket{job=\"rag_tax_advisor\"}[5m])) by (le))",
+          "legendFormat": "median confidence"
+        },
+        {
+          "expr": "histogram_quantile(0.10, sum(rate(retrieval_confidence_bucket{job=\"rag_tax_advisor\"}[5m])) by (le))",
+          "legendFormat": "p10 confidence (low-quality queries)"
+        }
+      ]
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": { "unit": "percentunit", "color": { "mode": "palette-classic" } }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 17 },
+      "id": 7,
+      "title": "Model Fallback Rate (local LLaMA → Gemini) — target ≤ 18%",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum(rate(llm_fallback_total{job=\"rag_tax_advisor\"}[5m])) / sum(rate(http_requests_total{job=\"rag_tax_advisor\", handler=\"/chat\"}[5m]))",
+          "legendFormat": "fallback rate"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.15 },
+              { "color": "red", "value": 0.25 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 25 },
+      "id": 103,
+      "title": "Refusal Breakdown",
+      "type": "row"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": { "unit": "short", "color": { "mode": "palette-classic" } }
+      },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 26 },
+      "id": 8,
+      "title": "Refused Queries by Reason (keyword_filter vs low_confidence)",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum(rate(refused_queries_total{job=\"rag_tax_advisor\", reason=\"keyword_filter\"}[5m]))",
+          "legendFormat": "keyword_filter (off-topic)"
+        },
+        {
+          "expr": "sum(rate(refused_queries_total{job=\"rag_tax_advisor\", reason=\"low_confidence\"}[5m]))",
+          "legendFormat": "low_confidence (< 0.70 cosine)"
+        }
+      ]
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "tags": ["rag", "llm", "tax", "nlp"],
+  "templating": { "list": [] },
+  "time": { "from": "now-1h", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "RAG Tax Advisor — LLM Observability",
+  "uid": "rag-tax-advisor-v1",
+  "version": 1
+}
