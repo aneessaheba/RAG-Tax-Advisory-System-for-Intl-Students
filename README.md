@@ -683,10 +683,10 @@ Evaluated on 10 international student tax questions across 5 metrics (0.0–1.0,
 
 | Metric | v1 (vector only) | v2 (ChromaDB hybrid) | v3 (+ Judge + Recall@K) | v4 (Elastic + RAGAS GPT-4) | Change |
 |--------|-----------------|---------------------|------------------------|---------------------------|--------|
-| Context Relevance | 0.584 | 0.549 | 0.549 | — | — |
+| Context Relevance | 0.584 | 0.549 | 0.549 | **0.549** (→ RAGAS ctx prec 0.82) | — |
 | **Precision@5** | **0.70** | **1.00** | **0.98** | **0.82** (RAGAS ctx prec) | **+0.12** |
 | **Recall@5** | — | — | **1.00** | **0.90** (RAGAS ctx recall) | **new** |
-| **Answer Relevance** | **0.693** | **0.740** | **0.744** | — | **+0.051** |
+| **Answer Relevance** | **0.693** | **0.740** | **0.744** | **0.744** (→ RAGAS faith 0.87) | **+0.051** |
 | **Faithfulness/Groundedness** | 0.738 | 0.699 | 0.701 | **0.87** (RAGAS GPT-4) | **+0.13** |
 | **p95 Retrieval Latency** | — | — | — | **< 400ms** (Elasticsearch) | **new** |
 | **p95 LLM Latency** | — | ~650ms | ~650ms | **~390ms** (context optimizer, −40%) | **−40%** |
